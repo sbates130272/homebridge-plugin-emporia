@@ -1,22 +1,26 @@
 {
-  "name": "homebridge-plugin-name",
-  "displayName": "Plugin Name",
+  "name": "homebridge-plugin-emporia",
+  "displayName": "Emporia Energy",
   "type": "module",
   "version": "1.0.0",
   "private": true,
-  "description": "A short description about what your plugin does.",
-  "author": "Your Name",
+  "description": "A plugin for viewing and controlling Emporia smartplugs.",
+  "author": "Stephen Bates",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/USERNAME/GITHUB_PROJECT_NAME#readme",
+  "homepage": "https://github.com/sbate/homebridge-plugin-emporia#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME.git"
+    "url": "https://github.com/sbates130272/homebridge-plugin-emporia.git"
   },
   "bugs": {
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME/issues"
+    "url": "https://github.com/sbates130272/homebridge-plugin-emporia/issues"
   },
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "homebridge",
+    "emporia",
+    "smartplug",
+    "plug"
   ],
   "main": "dist/index.js",
   "engines": {
