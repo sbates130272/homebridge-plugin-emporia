@@ -1,20 +1,93 @@
-
 {
-  "pluginAlias": "emporia-smartplug",
-  "pluginType": "accessory",
-  "name": "Emporia Smart Plug",
+  "pluginAlias": "EmporiaEnergy",
+  "pluginType": "platform",
+  "singular": true,
   "schema": {
     "type": "object",
     "properties": {
       "name": {
-        "type": "string"
+        "title": "Platform Name",
+        "type": "string",
+        "default": "Emporia Energy",
+        "required": true
       },
-      "apiKey": {
-        "type": "string"
+      "username": {
+        "title": "Emporia Email",
+        "type": "string",
+        "required": true,
+        "format": "email",
+        "description": "Your Emporia Energy account email address"
       },
-      "deviceId": {
-        "type": "string"
+      "password": {
+        "title": "Emporia Password",
+        "type": "string",
+        "required": true,
+        "description": "Your Emporia Energy account password"
+      },
+      "updateInterval": {
+        "title": "Update Interval (seconds)",
+        "type": "integer",
+        "default": 60,
+        "minimum": 10,
+        "maximum": 300,
+        "description": "How often to poll for energy usage updates (10-300 seconds)"
+      },
+      "exposeOutlets": {
+        "title": "Expose Smart Outlets",
+        "type": "boolean",
+        "default": true,
+        "description": "Expose Emporia smart outlets to HomeKit"
+      },
+      "exposeChargers": {
+        "title": "Expose EV Chargers",
+        "type": "boolean",
+        "default": true,
+        "description": "Expose Emporia EV chargers to HomeKit"
+      },
+      "exposeEnergyMonitoring": {
+        "title": "Expose Energy Monitoring",
+        "type": "boolean",
+        "default": true,
+        "description": "Add energy consumption characteristics to devices"
+      },
+      "debug": {
+        "title": "Enable Debug Logging",
+        "type": "boolean",
+        "default": false,
+        "description": "Enable detailed debug logging"
       }
+    },
+    "required": ["name", "username", "password"]
+  },
+  "layout": [
+    {
+      "type": "flex",
+      "flex-flow": "row wrap",
+      "items": ["name"]
+    },
+    {
+      "type": "fieldset",
+      "title": "Emporia Account",
+      "expandable": false,
+      "items": ["username", "password"]
+    },
+    {
+      "type": "fieldset",
+      "title": "Device Options",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        "exposeOutlets",
+        "exposeChargers",
+        "exposeEnergyMonitoring"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Advanced Settings",
+      "expandable": true,
+      "expanded": false,
+      "items": ["updateInterval", "debug"]
     }
-  }
+  ]
 }

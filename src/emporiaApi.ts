@@ -1,0 +1,347 @@
+import axios, { AxiosInstance } from 'axios';
+import type { Logging } from 'homebridge';
+
+export interface EmporiaTokens {
+  idToken: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+}
+
+export interface EmporiaDevice {
+  deviceGid: number;
+  manufacturerDeviceId: string;
+  model: string;
+  firmware: string;
+  devices?: EmporiaDevice[];
+  channels?: EmporiaChannel[];
+  outlet?: EmporiaOutlet;
+  evCharger?: EmporiaCharger;
+  locationProperties?: {
+    deviceName?: string;
+    zipCode?: string;
+    timeZone?: string;
+  };
+}
+
+export interface EmporiaChannel {
+  deviceGid: number;
+  name: string;
+  channelNum: string;
+  channelMultiplier: number;
+  channelTypeGid: number;
+}
+
+export interface EmporiaOutlet {
+  deviceGid: number;
+  outletOn: boolean;
+  parentDeviceGid?: number;
+  icon?: string;
+  locationProperties?: {
+    deviceName?: string;
+  };
+}
+
+export interface EmporiaCharger {
+  deviceGid: number;
+  chargerOn: boolean;
+  chargingRate: number;
+  maxChargingRate: number;
+  parentDeviceGid?: number;
+}
+
+export interface EmporiaUsageData {
+  deviceGid: number;
+  channelUsages: Array<{
+    deviceGid: number;
+    channelNum: string;
+    usage: number;
+    timestamp: string;
+  }>;
+}
+
+/**
+ * Emporia Energy API Client
+ * Based on PyEmVue implementation
+ */
+export class EmporiaApi {
+  private readonly baseUrl = 'https://api.emporiaenergy.com';
+  private readonly client: AxiosInstance;
+  private tokens: EmporiaTokens | null = null;
+
+  constructor(private readonly log: Logging) {
+    this.client = axios.create({
+      baseURL: this.baseUrl,
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Add response interceptor for token refresh
+    this.client.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          try {
+            await this.refreshAccessToken();
+            originalRequest.headers.Authorization = 
+              `Bearer ${this.tokens?.idToken}`;
+            return this.client(originalRequest);
+          } catch (refreshError) {
+            this.log.error('Token refresh failed:', refreshError);
+            throw refreshError;
+          }
+        }
+        return Promise.reject(error);
+      },
+    );
+  }
+
+  /**
+   * Authenticate with username and password
+   */
+  async login(username: string, password: string): Promise<EmporiaTokens> {
+    try {
+      this.log.debug('Authenticating with Emporia API...');
+      const response = await this.client.post('/customer/authenticate', {
+        username,
+        password,
+      });
+
+      this.tokens = {
+        idToken: response.data.idToken,
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        expiresAt: Date.now() + (3600 * 1000), // 1 hour
+      };
+
+      this.client.defaults.headers.common.authtoken = this.tokens.idToken;
+      this.log.info('Successfully authenticated with Emporia API');
+      return this.tokens;
+    } catch (error) {
+      this.log.error('Failed to authenticate:', error);
+      throw new Error('Authentication failed');
+    }
+  }
+
+  /**
+   * Refresh access token
+   */
+  private async refreshAccessToken(): Promise<void> {
+    if (!this.tokens?.refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    try {
+      const response = await this.client.post('/customer/refresh', {
+        refreshToken: this.tokens.refreshToken,
+      });
+
+      this.tokens = {
+        idToken: response.data.idToken,
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        expiresAt: Date.now() + (3600 * 1000),
+      };
+
+      this.client.defaults.headers.common.authtoken = this.tokens.idToken;
+      this.log.debug('Access token refreshed successfully');
+    } catch (error) {
+      this.log.error('Failed to refresh token:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all devices
+   */
+  async getDevices(): Promise<EmporiaDevice[]> {
+    try {
+      this.log.debug('Fetching devices from Emporia API...');
+      const response = await this.client.get('/customers/devices', {
+        headers: { authtoken: this.tokens?.idToken },
+      });
+      return response.data.customerDevices || [];
+    } catch (error) {
+      this.log.error('Failed to fetch devices:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get device properties
+   */
+  async getDeviceProperties(deviceGid: number): Promise<EmporiaDevice> {
+    try {
+      const response = await this.client.get(
+        `/devices/${deviceGid}/locationProperties`,
+        {
+          headers: { authtoken: this.tokens?.idToken },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      this.log.error(
+        `Failed to fetch properties for device ${deviceGid}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get outlets
+   */
+  async getOutlets(): Promise<EmporiaOutlet[]> {
+    try {
+      this.log.debug('Fetching outlets from Emporia API...');
+      const response = await this.client.get('/customers/outlets', {
+        headers: { authtoken: this.tokens?.idToken },
+      });
+      return response.data.outlets || [];
+    } catch (error) {
+      this.log.error('Failed to fetch outlets:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update outlet state
+   */
+  async updateOutlet(
+    deviceGid: number,
+    outletOn: boolean,
+  ): Promise<EmporiaOutlet> {
+    try {
+      this.log.debug(
+        `Updating outlet ${deviceGid} to ${outletOn ? 'ON' : 'OFF'}`,
+      );
+      const response = await this.client.put(
+        '/devices/outlet',
+        {
+          deviceGid,
+          outletOn,
+        },
+        {
+          headers: { authtoken: this.tokens?.idToken },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      this.log.error(`Failed to update outlet ${deviceGid}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get EV chargers
+   */
+  async getChargers(): Promise<EmporiaCharger[]> {
+    try {
+      this.log.debug('Fetching EV chargers from Emporia API...');
+      const response = await this.client.get('/customers/evchargers', {
+        headers: { authtoken: this.tokens?.idToken },
+      });
+      return response.data.evChargers || [];
+    } catch (error) {
+      this.log.error('Failed to fetch EV chargers:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update EV charger state
+   */
+  async updateCharger(
+    deviceGid: number,
+    chargerOn: boolean,
+    chargingRate?: number,
+    maxChargingRate?: number,
+  ): Promise<EmporiaCharger> {
+    try {
+      this.log.debug(
+        `Updating charger ${deviceGid} to ${chargerOn ? 'ON' : 'OFF'}`,
+      );
+      const data: Record<string, unknown> = {
+        deviceGid,
+        chargerOn,
+      };
+
+      if (chargingRate !== undefined) {
+        data.chargingRate = chargingRate;
+      }
+      if (maxChargingRate !== undefined) {
+        data.maxChargingRate = maxChargingRate;
+      }
+
+      const response = await this.client.put('/devices/evcharger', data, {
+        headers: { authtoken: this.tokens?.idToken },
+      });
+      return response.data;
+    } catch (error) {
+      this.log.error(`Failed to update charger ${deviceGid}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get device usage data
+   */
+  async getDeviceUsage(
+    deviceGid: number,
+    instant: Date = new Date(),
+    scale: string = 'MINUTE',
+    unit: string = 'KWH',
+  ): Promise<EmporiaUsageData> {
+    try {
+      const response = await this.client.post(
+        '/devices/usage',
+        {
+          deviceGids: [deviceGid],
+          instant: instant.toISOString(),
+          scale,
+          unit,
+        },
+        {
+          headers: { authtoken: this.tokens?.idToken },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      this.log.error(
+        `Failed to fetch usage for device ${deviceGid}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Check if authenticated
+   */
+  isAuthenticated(): boolean {
+    return (
+      this.tokens !== null &&
+      this.tokens.expiresAt > Date.now()
+    );
+  }
+
+  /**
+   * Set tokens (for restoring from storage)
+   */
+  setTokens(tokens: EmporiaTokens): void {
+    this.tokens = tokens;
+    this.client.defaults.headers.common.authtoken = tokens.idToken;
+  }
+
+  /**
+   * Get current tokens
+   */
+  getTokens(): EmporiaTokens | null {
+    return this.tokens;
+  }
+}
+

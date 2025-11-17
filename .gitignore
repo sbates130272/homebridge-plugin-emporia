@@ -123,4 +123,16 @@ dist
 # Webstorm
 .idea
 
+# Test configuration (may contain credentials)
 /test/hbConfig
+
+# Emporia authentication tokens
+emporia-tokens.json
+
+# Git commit messages and scripts (per project rules)
+*commit-message*.txt
+*commit-message*.md
+commit-*.sh
+
+# Docker volumes
+docker-data/
