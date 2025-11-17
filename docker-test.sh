@@ -55,9 +55,10 @@ ACTION=${1:-"start"}
 case "$ACTION" in
     start)
         info "Starting Homebridge test container..."
-        npm run build
+        info "(Plugin will be built inside the container)"
         $DOCKER_COMPOSE up -d homebridge
-        info "Homebridge started successfully!"
+        sleep 5
+        info "Homebridge is starting..."
         info "Access the UI at http://localhost:8581"
         info "View logs with: ./docker-test.sh logs"
         ;;
@@ -70,7 +71,7 @@ case "$ACTION" in
     
     restart)
         info "Restarting Homebridge test container..."
-        npm run build
+        info "(Plugin will be rebuilt inside the container)"
         $DOCKER_COMPOSE restart homebridge
         info "Container restarted."
         ;;
@@ -81,16 +82,16 @@ case "$ACTION" in
         ;;
     
     build)
-        info "Building plugin..."
-        npm run build
+        info "Building plugin in container..."
+        $DOCKER_COMPOSE exec homebridge bash -c "cd /tmp/homebridge-plugin-emporia && npm run build"
         info "Build complete."
         ;;
     
     rebuild)
         info "Rebuilding everything..."
-        npm run build
         $DOCKER_COMPOSE down
         $DOCKER_COMPOSE up -d --build homebridge
+        sleep 5
         info "Rebuild complete."
         ;;
     

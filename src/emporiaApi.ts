@@ -1,5 +1,19 @@
 import axios, { AxiosInstance } from 'axios';
 import type { Logging } from 'homebridge';
+import {
+  CognitoUserPool,
+  CognitoUser,
+  AuthenticationDetails,
+  CognitoUserSession,
+} from 'amazon-cognito-identity-js';
+
+// Polyfill for Node.js environment (Cognito expects browser globals)
+if (typeof (global as any).fetch === 'undefined') {
+  (global as any).fetch = async (...args: any[]) => {
+    const nodeFetch = (await import('node-fetch')).default;
+    return nodeFetch(...args);
+  };
+}
 
 export interface EmporiaTokens {
   idToken: string;
@@ -63,11 +77,18 @@ export interface EmporiaUsageData {
 /**
  * Emporia Energy API Client
  * Based on PyEmVue implementation
+ * Uses AWS Cognito for authentication
  */
 export class EmporiaApi {
   private readonly baseUrl = 'https://api.emporiaenergy.com';
   private readonly client: AxiosInstance;
   private tokens: EmporiaTokens | null = null;
+  
+  // AWS Cognito configuration from PyEmVue
+  private readonly cognitoClientId = '4qte47jbstod8apnfic0bunmrq';
+  private readonly cognitoUserPoolId = 'us-east-2_ghlOXVLi1';
+  private cognitoUser: CognitoUser | null = null;
+  private username: string | null = null;
 
   constructor(private readonly log: Logging) {
     this.client = axios.create({
@@ -87,8 +108,7 @@ export class EmporiaApi {
           originalRequest._retry = true;
           try {
             await this.refreshAccessToken();
-            originalRequest.headers.Authorization = 
-              `Bearer ${this.tokens?.idToken}`;
+            originalRequest.headers.authtoken = this.tokens?.idToken;
             return this.client(originalRequest);
           } catch (refreshError) {
             this.log.error('Token refresh failed:', refreshError);
@@ -101,26 +121,48 @@ export class EmporiaApi {
   }
 
   /**
-   * Authenticate with username and password
+   * Authenticate with username and password using AWS Cognito
    */
   async login(username: string, password: string): Promise<EmporiaTokens> {
     try {
-      this.log.debug('Authenticating with Emporia API...');
-      const response = await this.client.post('/customer/authenticate', {
-        username,
-        password,
+      this.log.debug('Authenticating with Emporia API via Cognito...');
+      this.username = username.toLowerCase();
+
+      const userPool = new CognitoUserPool({
+        UserPoolId: this.cognitoUserPoolId,
+        ClientId: this.cognitoClientId,
       });
 
-      this.tokens = {
-        idToken: response.data.idToken,
-        accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken,
-        expiresAt: Date.now() + (3600 * 1000), // 1 hour
-      };
+      this.cognitoUser = new CognitoUser({
+        Username: this.username,
+        Pool: userPool,
+      });
 
-      this.client.defaults.headers.common.authtoken = this.tokens.idToken;
-      this.log.info('Successfully authenticated with Emporia API');
-      return this.tokens;
+      const authDetails = new AuthenticationDetails({
+        Username: this.username,
+        Password: password,
+      });
+
+      return new Promise((resolve, reject) => {
+        this.cognitoUser!.authenticateUser(authDetails, {
+          onSuccess: (session: CognitoUserSession) => {
+            this.tokens = {
+              idToken: session.getIdToken().getJwtToken(),
+              accessToken: session.getAccessToken().getJwtToken(),
+              refreshToken: session.getRefreshToken().getToken(),
+              expiresAt: Date.now() + (3600 * 1000), // 1 hour
+            };
+
+            this.client.defaults.headers.common.authtoken = this.tokens.idToken;
+            this.log.info('Successfully authenticated with Emporia API');
+            resolve(this.tokens);
+          },
+          onFailure: (err) => {
+            this.log.error('Cognito authentication failed:', err.message);
+            reject(new Error(`Authentication failed: ${err.message}`));
+          },
+        });
+      });
     } catch (error) {
       this.log.error('Failed to authenticate:', error);
       throw new Error('Authentication failed');
@@ -128,31 +170,36 @@ export class EmporiaApi {
   }
 
   /**
-   * Refresh access token
+   * Refresh access token using Cognito
    */
   private async refreshAccessToken(): Promise<void> {
-    if (!this.tokens?.refreshToken) {
+    if (!this.cognitoUser || !this.tokens?.refreshToken) {
       throw new Error('No refresh token available');
     }
 
-    try {
-      const response = await this.client.post('/customer/refresh', {
-        refreshToken: this.tokens.refreshToken,
-      });
+    return new Promise((resolve, reject) => {
+      this.cognitoUser!.refreshSession(
+        { getToken: () => this.tokens!.refreshToken } as any,
+        (err, session: CognitoUserSession) => {
+          if (err) {
+            this.log.error('Failed to refresh token:', err.message);
+            reject(err);
+            return;
+          }
 
-      this.tokens = {
-        idToken: response.data.idToken,
-        accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken,
-        expiresAt: Date.now() + (3600 * 1000),
-      };
+          this.tokens = {
+            idToken: session.getIdToken().getJwtToken(),
+            accessToken: session.getAccessToken().getJwtToken(),
+            refreshToken: session.getRefreshToken().getToken(),
+            expiresAt: Date.now() + (3600 * 1000),
+          };
 
-      this.client.defaults.headers.common.authtoken = this.tokens.idToken;
-      this.log.debug('Access token refreshed successfully');
-    } catch (error) {
-      this.log.error('Failed to refresh token:', error);
-      throw error;
-    }
+          this.client.defaults.headers.common.authtoken = this.tokens.idToken;
+          this.log.debug('Access token refreshed successfully');
+          resolve();
+        },
+      );
+    });
   }
 
   /**
@@ -198,7 +245,7 @@ export class EmporiaApi {
   async getOutlets(): Promise<EmporiaOutlet[]> {
     try {
       this.log.debug('Fetching outlets from Emporia API...');
-      const response = await this.client.get('/customers/outlets', {
+      const response = await this.client.get('/customers/devices/status', {
         headers: { authtoken: this.tokens?.idToken },
       });
       return response.data.outlets || [];
@@ -242,7 +289,7 @@ export class EmporiaApi {
   async getChargers(): Promise<EmporiaCharger[]> {
     try {
       this.log.debug('Fetching EV chargers from Emporia API...');
-      const response = await this.client.get('/customers/evchargers', {
+      const response = await this.client.get('/customers/devices/status', {
         headers: { authtoken: this.tokens?.idToken },
       });
       return response.data.evChargers || [];
@@ -332,9 +379,22 @@ export class EmporiaApi {
   /**
    * Set tokens (for restoring from storage)
    */
-  setTokens(tokens: EmporiaTokens): void {
+  setTokens(tokens: EmporiaTokens, username?: string): void {
     this.tokens = tokens;
     this.client.defaults.headers.common.authtoken = tokens.idToken;
+    
+    // Recreate Cognito user if username provided
+    if (username) {
+      this.username = username.toLowerCase();
+      const userPool = new CognitoUserPool({
+        UserPoolId: this.cognitoUserPoolId,
+        ClientId: this.cognitoClientId,
+      });
+      this.cognitoUser = new CognitoUser({
+        Username: this.username,
+        Pool: userPool,
+      });
+    }
   }
 
   /**

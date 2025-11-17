@@ -110,7 +110,7 @@ export class EmporiaEnergyPlatform implements DynamicPlatformPlugin {
           const tokensData = fs.readFileSync(this.tokensFile, 'utf-8');
           const tokens: EmporiaTokens = JSON.parse(tokensData);
           if (tokens.expiresAt > Date.now()) {
-            this.api.setTokens(tokens);
+            this.api.setTokens(tokens, this.config.username);
             authenticated = true;
             this.log.info('Loaded saved authentication tokens');
           }
