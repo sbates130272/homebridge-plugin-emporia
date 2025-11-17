@@ -1,50 +1,24 @@
+
 {
-  "name": "homebridge-plugin-emporia",
-  "displayName": "Emporia Energy",
-  "type": "module",
+  "name": "homebridge-emporia-smartplug",
   "version": "1.0.0",
-  "private": true,
-  "description": "A plugin for viewing and controlling Emporia smartplugs.",
-  "author": "Stephen Bates",
-  "license": "Apache-2.0",
-  "homepage": "https://github.com/sbate/homebridge-plugin-emporia#readme",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/sbates130272/homebridge-plugin-emporia.git"
-  },
-  "bugs": {
-    "url": "https://github.com/sbates130272/homebridge-plugin-emporia/issues"
+  "description": "Homebridge plugin for Emporia smart plugs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "homebridge-plugin",
-    "homebridge",
     "emporia",
-    "smartplug",
-    "plug"
+    "smart-plug"
   ],
-  "main": "dist/index.js",
+  "author": "Stephen Bates",
+  "license": "MIT",
   "engines": {
-    "node": "^20.18.0 || ^22.10.0 || ^24.0.0",
-    "homebridge": "^1.8.0 || ^2.0.0-beta.0"
-  },
-  "scripts": {
-    "build": "rimraf ./dist && tsc",
-    "lint": "eslint . --max-warnings=0",
-    "prepublishOnly": "npm run lint && npm run build",
-    "watch": "npm run build && npm link && nodemon"
+    "homebridge": ">=1.0.0",
+    "node": ">=16.0.0"
   },
   "dependencies": {
-    "homebridge-lib": "^7.1.8"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "@types/node": "^24.5.2",
-    "eslint": "^9.36.0",
-    "homebridge": "^2.0.0-beta.30",
-    "nodemon": "^3.1.10",
-    "rimraf": "^6.0.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.2",
-    "typescript-eslint": "^8.44.0"
+    "axios": "^1.6.0"
   }
 }

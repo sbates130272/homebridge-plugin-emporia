@@ -1,17 +1,19 @@
+
 {
-  "pluginAlias": "EmporiaEnergy",
-  "pluginType": "platform",
-  "singular": true,
-  "strictValidation": false,
+  "pluginAlias": "emporia-smartplug",
+  "pluginType": "accessory",
+  "name": "Emporia Smart Plug",
   "schema": {
     "type": "object",
-    "required": ["name"],
-    "additionalProperties": false,
     "properties": {
       "name": {
-        "title": "Name",
-        "type": "string",
-        "default": "Example Dynamic Platform"
+        "type": "string"
+      },
+      "apiKey": {
+        "type": "string"
+      },
+      "deviceId": {
+        "type": "string"
       }
     }
   }
