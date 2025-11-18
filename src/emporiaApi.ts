@@ -342,21 +342,22 @@ export class EmporiaApi {
 
   /**
    * Get device usage data
+   * Uses PyEmVue's ChartUsage endpoint
    */
   async getDeviceUsage(
     deviceGid: number,
     instant: Date = new Date(),
-    scale: string = 'MINUTE',
-    unit: string = 'KWH',
+    scale: string = '1MIN',
+    unit: string = 'KilowattHours',
   ): Promise<EmporiaUsageData> {
     try {
       const response = await this.client.post(
-        '/devices/usage',
+        '/AppAPI/ChartUsage',
         {
           deviceGids: [deviceGid],
           instant: instant.toISOString(),
           scale,
-          unit,
+          energyUnit: unit,
         },
         {
           headers: { authtoken: this.tokens?.idToken },
