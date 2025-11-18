@@ -97,6 +97,67 @@ Add the following to your Homebridge `config.json`:
 | `exposeEnergyMonitoring` | No | `true` | Add energy consumption data |
 | `debug` | No | `false` | Enable detailed debug logging |
 
+### Device Customization
+
+You can customize individual devices by adding a `devices` array to your
+configuration. This allows you to:
+
+- **Assign custom names** to make devices easier to identify and assign to
+  rooms in HomeKit
+- **Hide specific devices** that you don't want exposed to HomeKit
+
+To customize a device, you need its **Device ID (GID)**, which is displayed
+in Homebridge logs when devices are discovered:
+
+```
+[Emporia Energy] Discovered 3 outlet(s)
+[Emporia Energy] Adding new outlet: Emporia Outlet 123456
+```
+
+In this example, the Device ID is `123456`.
+
+#### Example: Custom Names and Hidden Devices
+
+```json
+{
+  "platforms": [
+    {
+      "platform": "EmporiaEnergy",
+      "name": "Emporia Energy",
+      "username": "your-email@example.com",
+      "password": "your-password",
+      "devices": [
+        {
+          "deviceGid": 123456,
+          "name": "Living Room Lamp"
+        },
+        {
+          "deviceGid": 789012,
+          "name": "Garage Freezer",
+          "hide": false
+        },
+        {
+          "deviceGid": 345678,
+          "hide": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+In this example:
+- Device `123456` will appear as "Living Room Lamp" (easier to assign to
+  Living Room in Home app)
+- Device `789012` will appear as "Garage Freezer"
+- Device `345678` will be hidden and not appear in HomeKit at all
+
+**Tips:**
+- Use descriptive names that include the room for easier HomeKit organization
+- Device names update automatically when you change the configuration
+- Hidden devices can be un-hidden by setting `hide: false` or removing the
+  device entry
+
 ## Usage
 
 ### Smart Outlets

@@ -55,6 +55,32 @@
         "type": "boolean",
         "default": false,
         "description": "Enable detailed debug logging"
+      },
+      "devices": {
+        "title": "Device Customization",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "deviceGid": {
+              "title": "Device ID (GID)",
+              "type": "integer",
+              "required": true,
+              "description": "The device GID from Emporia (visible in logs)"
+            },
+            "name": {
+              "title": "Custom Name",
+              "type": "string",
+              "description": "Custom display name for this device"
+            },
+            "hide": {
+              "title": "Hide Device",
+              "type": "boolean",
+              "default": false,
+              "description": "Hide this device from HomeKit"
+            }
+          }
+        }
       }
     },
     "required": ["name", "username", "password"]
@@ -88,6 +114,26 @@
       "expandable": true,
       "expanded": false,
       "items": ["updateInterval", "debug"]
+    },
+    {
+      "type": "fieldset",
+      "title": "Device Customization",
+      "expandable": true,
+      "expanded": false,
+      "description": "Customize individual devices by their Device ID (GID). Device IDs are shown in Homebridge logs when devices are discovered.",
+      "items": [
+        {
+          "key": "devices",
+          "type": "array",
+          "orderable": false,
+          "buttonText": "Add Device Override",
+          "items": [
+            "devices[].deviceGid",
+            "devices[].name",
+            "devices[].hide"
+          ]
+        }
+      ]
     }
   ]
 }
