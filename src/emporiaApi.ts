@@ -8,10 +8,13 @@ import {
 } from 'amazon-cognito-identity-js';
 
 // Polyfill for Node.js environment (Cognito expects browser globals)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 if (typeof (global as any).fetch === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (global as any).fetch = async (...args: any[]) => {
     const nodeFetch = (await import('node-fetch')).default;
-    return nodeFetch(...args);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return nodeFetch(...args as any);
   };
 }
 
@@ -178,6 +181,7 @@ export class EmporiaApi {
     }
 
     return new Promise((resolve, reject) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.cognitoUser!.refreshSession(
         { getToken: () => this.tokens!.refreshToken } as any,
         (err, session: CognitoUserSession) => {
