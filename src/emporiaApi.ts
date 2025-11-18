@@ -182,8 +182,8 @@ export class EmporiaApi {
 
     return new Promise((resolve, reject) => {
       // Cognito requires CognitoRefreshToken but we only have the token string
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.cognitoUser!.refreshSession(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         { getToken: () => this.tokens!.refreshToken } as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (err: any, session: CognitoUserSession) => {
