@@ -353,12 +353,14 @@ export class EmporiaApi {
     unit: string = 'KilowattHours',
   ): Promise<EmporiaUsageData> {
     try {
-      // Format dates as Unix timestamps in milliseconds
-      const startMs = Math.floor(start.getTime());
-      const endMs = Math.floor(end.getTime());
+      // Format dates as ISO 8601 strings with Z suffix (like PyEmVue does)
+      const startStr = start.toISOString();
+      const endStr = end.toISOString();
       
       // Use GET with query parameters like PyEmVue does
-      const url = `AppAPI?apiMethod=getChartUsage&deviceGid=${deviceGid}&channel=${channel}&start=${startMs}&end=${endMs}&scale=${scale}&energyUnit=${unit}`;
+      const url = `AppAPI?apiMethod=getChartUsage&deviceGid=${deviceGid}` +
+        `&channel=${channel}&start=${encodeURIComponent(startStr)}` +
+        `&end=${encodeURIComponent(endStr)}&scale=${scale}&energyUnit=${unit}`;
       
       const response = await this.client.get(url, {
         headers: { authtoken: this.tokens?.idToken },
