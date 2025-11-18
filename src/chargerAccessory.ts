@@ -116,7 +116,8 @@ export class EmporiaChargerAccessory {
         );
 
         // Update energy data if monitoring is enabled
-        if (this.platform.config.exposeEnergyMonitoring !== false) {
+        // Note: Energy monitoring may not be available for all charger types
+        if (this.platform.config.exposeEnergyMonitoring === true) {
           try {
             const usage = await this.platform
               .getApi()

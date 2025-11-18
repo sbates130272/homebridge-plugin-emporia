@@ -121,7 +121,9 @@ export class EmporiaOutletAccessory {
         );
 
         // Update energy data if monitoring is enabled
-        if (this.platform.config.exposeEnergyMonitoring !== false) {
+        // Note: Energy monitoring is only available for Vue energy monitor devices,
+        // not for smart outlets
+        if (this.platform.config.exposeEnergyMonitoring === true) {
           try {
             const usage = await this.platform
               .getApi()

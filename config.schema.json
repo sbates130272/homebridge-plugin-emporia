@@ -47,8 +47,8 @@
       "exposeEnergyMonitoring": {
         "title": "Expose Energy Monitoring",
         "type": "boolean",
-        "default": true,
-        "description": "Add energy consumption characteristics to devices"
+        "default": false,
+        "description": "Add energy consumption characteristics (only available for Vue energy monitor devices, not smart outlets)"
       },
       "debug": {
         "title": "Enable Debug Logging",
