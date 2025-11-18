@@ -1,12 +1,8 @@
 
 # Homebridge Emporia Energy Plugin
 
-[![npm version](https://badge.fury.io/js/homebridge-plugin-emporia.svg)](
-https://badge.fury.io/js/homebridge-plugin-emporia)
-[![CI](https://github.com/yourusername/homebridge-plugin-emporia/actions/
-workflows/ci.yml/badge.svg)](
-https://github.com/yourusername/homebridge-plugin-emporia/actions/workflows/
-ci.yml)
+[![npm version](https://badge.fury.io/js/homebridge-plugin-emporia.svg)](https://badge.fury.io/js/homebridge-plugin-emporia)
+[![CI](https://github.com/sbates130272/homebridge-plugin-emporia/actions/workflows/ci.yml/badge.svg)](https://github.com/sbates130272/homebridge-plugin-emporia/actions/workflows/ci.yml)
 
 A [Homebridge](https://homebridge.io) plugin that integrates 
 [Emporia Vue](https://emporiaenergy.com) energy monitoring devices with 
@@ -150,7 +146,7 @@ development and testing.
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/homebridge-plugin-emporia.git
+git clone https://github.com/sbates130272/homebridge-plugin-emporia.git
 cd homebridge-plugin-emporia
 ```
 
@@ -329,11 +325,9 @@ your devices or data.
 ## Support
 
 - **Issues**: Report bugs or request features on 
-  [GitHub Issues](
-    https://github.com/yourusername/homebridge-plugin-emporia/issues)
+  [GitHub Issues](https://github.com/sbates130272/homebridge-plugin-emporia/issues)
 - **Discussions**: Ask questions on 
-  [GitHub Discussions](
-    https://github.com/yourusername/homebridge-plugin-emporia/discussions)
+  [GitHub Discussions](https://github.com/sbates130272/homebridge-plugin-emporia/discussions)
 
 ## Changelog
 
