@@ -26,11 +26,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/homebridge-plugin-emporia.git"
+    "url": "git+https://github.com/sbates130272/homebridge-plugin-emporia.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/homebridge-plugin-emporia/issues"
+    "url": "https://github.com/sbates130272/homebridge-plugin-emporia/issues"
   },
+  "homepage": "https://github.com/sbates130272/homebridge-plugin-emporia#readme",
   "author": "Stephen Bates",
   "license": "MIT",
   "engines": {
