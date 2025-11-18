@@ -14,7 +14,7 @@ if (typeof (global as any).fetch === 'undefined') {
   (global as any).fetch = async (...args: any[]) => {
     const nodeFetch = (await import('node-fetch')).default;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return nodeFetch(...args as any);
+    return (nodeFetch as any)(...args);
   };
 }
 
