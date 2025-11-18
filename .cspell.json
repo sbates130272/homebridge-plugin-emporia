@@ -1,0 +1,53 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "Emporia",
+    "Homebridge",
+    "homebridge",
+    "PyEmVue",
+    "axios",
+    "tseslint",
+    "typeof",
+    "nodemon",
+    "devDependencies",
+    "platformAccessory",
+    "AccessoryInformation",
+    "homebridgeApi",
+    "deviceGid",
+    "channelNum",
+    "outletOn",
+    "chargerOn",
+    "chargingRate",
+    "maxChargingRate",
+    "authtoken",
+    "idToken",
+    "accessToken",
+    "refreshToken",
+    "expiresAt",
+    "deviceGids",
+    "channelUsages",
+    "evchargers",
+    "evse",
+    "EVSE",
+    "kwh",
+    "KWH",
+    "Kwh",
+    "Amps"
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "dist/**",
+    "package-lock.json",
+    "*.log",
+    ".git/**",
+    ".github/**",
+    "coverage/**"
+  ],
+  "flagWords": [],
+  "ignoreRegExpList": [
+    "/0x[0-9A-Fa-f]+/g",
+    "/[0-9]{4,}/g"
+  ]
+}
+

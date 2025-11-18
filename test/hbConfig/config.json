@@ -1,13 +1,13 @@
 {
   "bridge": {
-    "name": "PluginTemplate",
+    "name": "Homebridge Emporia Test",
     "username": "AA:BB:CC:DD:EE:FF",
     "port": 51826,
     "pin": "031-45-154"
   },
-  "description": "HomeBridge HTTP Status Control",
+  "description": "Homebridge Emporia Energy Test Configuration",
   "plugins": [
-    "homebridge-plugin-name",
+    "homebridge-plugin-emporia",
     "homebridge-config-ui-x"
   ],
   "platforms": [
@@ -23,8 +23,15 @@
       "debug": false
     },
     {
-      "name": "homebridge-plugin-name",
-      "platform": "ExampleHomebridgePlugin"
+      "name": "Emporia Energy",
+      "platform": "EmporiaEnergy",
+      "username": "YOUR_EMPORIA_EMAIL@example.com",
+      "password": "YOUR_EMPORIA_PASSWORD",
+      "updateInterval": 60,
+      "exposeOutlets": true,
+      "exposeChargers": true,
+      "exposeEnergyMonitoring": true,
+      "debug": true
     }
   ],
   "accessories": []

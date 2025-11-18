@@ -1,24 +1,56 @@
-
 {
-  "name": "homebridge-emporia-smartplug",
+  "name": "homebridge-plugin-emporia",
+  "displayName": "Homebridge Emporia Energy",
   "version": "1.0.0",
-  "description": "Homebridge plugin for Emporia smart plugs",
-  "main": "index.js",
+  "description": "Homebridge plugin for Emporia Vue energy monitoring devices including smart outlets and EV chargers",
+  "main": "dist/index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "prepublishOnly": "npm run lint && npm run build",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "test": "echo \"Tests not implemented yet\" && exit 0"
   },
   "keywords": [
     "homebridge-plugin",
     "emporia",
-    "smart-plug"
+    "emporia-vue",
+    "energy-monitoring",
+    "smart-plug",
+    "outlet",
+    "ev-charger",
+    "evse",
+    "homekit"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/homebridge-plugin-emporia.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/homebridge-plugin-emporia/issues"
+  },
   "author": "Stephen Bates",
   "license": "MIT",
   "engines": {
-    "homebridge": ">=1.0.0",
-    "node": ">=16.0.0"
+    "homebridge": ">=1.8.0",
+    "node": ">=18.0.0"
   },
   "dependencies": {
-    "axios": "^1.6.0"
+    "amazon-cognito-identity-js": "^6.3.12",
+    "axios": "^1.7.0",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.2",
+    "@types/node-fetch": "^2.6.11",
+    "eslint": "^9.17.0",
+    "homebridge": "^1.8.0",
+    "homebridge-lib": "^6.7.5",
+    "nodemon": "^3.1.9",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.2"
   }
 }

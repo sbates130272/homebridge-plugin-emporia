@@ -1,0 +1,41 @@
+services:
+  homebridge:
+    image: homebridge/homebridge:latest
+    container_name: homebridge-emporia-test
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=America/New_York
+      - HOMEBRIDGE_CONFIG_UI=1
+      - HOMEBRIDGE_CONFIG_UI_PORT=8581
+    volumes:
+      # Mount the plugin source for live testing
+      - ./:/homebridge/plugin:ro
+      # Mount homebridge config directory
+      - ./test/hbConfig:/homebridge
+      # Named volume for persistence
+      - homebridge-data:/homebridge-persist
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  # Optional: Test environment with build tools
+  dev-environment:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: homebridge-emporia-dev
+    network_mode: host
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    command: tail -f /dev/null
+    profiles:
+      - dev
+
+volumes:
+  homebridge-data:
+    driver: local
+

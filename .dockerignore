@@ -1,0 +1,14 @@
+node_modules
+dist
+*.log
+.git
+.vscode
+.idea
+coverage
+.DS_Store
+commit-*.sh
+commit-message*.txt
+amend-*.sh
+setup-*.sh
+test-*.sh
+

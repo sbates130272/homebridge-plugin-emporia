@@ -1,0 +1,38 @@
+# Development Dockerfile for building and testing the plugin
+FROM node:20-bullseye-slim
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /workspace
+
+# Install global dependencies
+RUN npm install -g \
+    homebridge \
+    homebridge-config-ui-x \
+    typescript \
+    eslint
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Build the plugin
+RUN npm run build
+
+# Expose Homebridge UI port
+EXPOSE 8581
+
+CMD ["bash"]
+

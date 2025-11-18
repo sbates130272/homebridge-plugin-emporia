@@ -1,150 +1,276 @@
-import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
+import type {
+  API,
+  Characteristic,
+  DynamicPlatformPlugin,
+  Logging,
+  PlatformAccessory,
+  PlatformConfig,
+  Service,
+} from 'homebridge';
 
-import { ExamplePlatformAccessory } from './platformAccessory.js';
+import { EmporiaOutletAccessory } from './outletAccessory.js';
+import { EmporiaChargerAccessory } from './chargerAccessory.js';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
+import { EmporiaApi, EmporiaTokens } from './emporiaApi.js';
+import * as fs from 'fs';
+import * as path from 'path';
 
-// This is only required when using Custom Services and Characteristics not support by HomeKit
-import { EveHomeKitTypes } from 'homebridge-lib/EveHomeKitTypes';
+export interface EmporiaPlatformConfig extends PlatformConfig {
+  username: string;
+  password: string;
+  updateInterval?: number;
+  exposeOutlets?: boolean;
+  exposeChargers?: boolean;
+  exposeEnergyMonitoring?: boolean;
+  debug?: boolean;
+}
 
 /**
- * HomebridgePlatform
- * This class is the main constructor for your plugin, this is where you should
- * parse the user config and discover/register accessories with Homebridge.
+ * Emporia Energy Platform Plugin
+ * Discovers and manages Emporia Vue devices including outlets and 
+ * EV chargers
  */
-export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
+export class EmporiaEnergyPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service;
   public readonly Characteristic: typeof Characteristic;
 
-  // this is used to track restored cached accessories
+  // Track restored cached accessories
   public readonly accessories: Map<string, PlatformAccessory> = new Map();
-  public readonly discoveredCacheUUIDs: string[] = [];
+  private readonly discoveredUUIDs: Set<string> = new Set();
 
-  // This is only required when using Custom Services and Characteristics not support by HomeKit
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public readonly CustomServices: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public readonly CustomCharacteristics: any;
+  // Emporia API client
+  private readonly api: EmporiaApi;
+  private updateInterval?: NodeJS.Timeout;
+  private readonly tokensFile: string;
 
   constructor(
     public readonly log: Logging,
-    public readonly config: PlatformConfig,
-    public readonly api: API,
+    public readonly config: EmporiaPlatformConfig,
+    public readonly homebridgeApi: API,
   ) {
-    this.Service = api.hap.Service;
-    this.Characteristic = api.hap.Characteristic;
+    this.Service = homebridgeApi.hap.Service;
+    this.Characteristic = homebridgeApi.hap.Characteristic;
 
-    // This is only required when using Custom Services and Characteristics not support by HomeKit
-    this.CustomServices = new EveHomeKitTypes(this.api).Services;
-    this.CustomCharacteristics = new EveHomeKitTypes(this.api).Characteristics;
+    // Initialize Emporia API client
+    this.api = new EmporiaApi(log);
 
-    this.log.debug('Finished initializing platform:', this.config.name);
+    // Path for storing tokens
+    this.tokensFile = path.join(
+      homebridgeApi.user.storagePath(),
+      'emporia-tokens.json',
+    );
 
-    // When this event is fired it means Homebridge has restored all cached accessories from disk.
-    // Dynamic Platform plugins should only register new accessories after this event was fired,
-    // in order to ensure they weren't added to homebridge already. This event can also be used
-    // to start discovery of new accessories.
-    this.api.on('didFinishLaunching', () => {
-      log.debug('Executed didFinishLaunching callback');
-      // run the method to discover / register your devices as accessories
-      this.discoverDevices();
+    // Validate configuration
+    if (!config.username || !config.password) {
+      this.log.error(
+        'Username and password are required in the plugin configuration',
+      );
+      return;
+    }
+
+    this.log.info('Emporia Energy Platform initialized');
+
+    // Wait for Homebridge to finish launching before discovering devices
+    this.homebridgeApi.on('didFinishLaunching', () => {
+      log.info('Homebridge finished launching, discovering devices...');
+      this.authenticateAndDiscoverDevices();
+
+      // Set up periodic update interval
+      const interval = (config.updateInterval || 60) * 1000;
+      this.updateInterval = setInterval(() => {
+        this.updateAllDevices();
+      }, interval);
+    });
+
+    // Cleanup on shutdown
+    this.homebridgeApi.on('shutdown', () => {
+      if (this.updateInterval) {
+        clearInterval(this.updateInterval);
+      }
     });
   }
 
   /**
-   * This function is invoked when homebridge restores cached accessories from disk at startup.
-   * It should be used to set up event handlers for characteristics and update respective values.
+   * Restore cached accessories from disk
    */
-  configureAccessory(accessory: PlatformAccessory) {
-    this.log.info('Loading accessory from cache:', accessory.displayName);
-
-    // add the restored accessory to the accessories cache, so we can track if it has already been registered
+  configureAccessory(accessory: PlatformAccessory): void {
+    this.log.info('Loading cached accessory:', accessory.displayName);
     this.accessories.set(accessory.UUID, accessory);
   }
 
   /**
-   * This is an example method showing how to register discovered accessories.
-   * Accessories must only be registered once, previously created accessories
-   * must not be registered again to prevent "duplicate UUID" errors.
+   * Authenticate and discover devices
    */
-  discoverDevices() {
-    // EXAMPLE ONLY
-    // A real plugin you would discover accessories from the local network, cloud services
-    // or a user-defined array in the platform config.
-    const exampleDevices = [
-      {
-        exampleUniqueId: 'ABCD',
-        exampleDisplayName: 'Bedroom',
-      },
-      {
-        exampleUniqueId: 'EFGH',
-        exampleDisplayName: 'Kitchen',
-      },
-      {
-        // This is an example of a device which uses a Custom Service
-        exampleUniqueId: 'IJKL',
-        exampleDisplayName: 'Backyard',
-        CustomService: 'AirPressureSensor',
-      },
-    ];
-
-    // loop over the discovered devices and register each one if it has not already been registered
-    for (const device of exampleDevices) {
-      // generate a unique id for the accessory this should be generated from
-      // something globally unique, but constant, for example, the device serial
-      // number or MAC address
-      const uuid = this.api.hap.uuid.generate(device.exampleUniqueId);
-
-      // see if an accessory with the same uuid has already been registered and restored from
-      // the cached devices we stored in the `configureAccessory` method above
-      const existingAccessory = this.accessories.get(uuid);
-
-      if (existingAccessory) {
-        // the accessory already exists
-        this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
-
-        // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. e.g.:
-        // existingAccessory.context.device = device;
-        // this.api.updatePlatformAccessories([existingAccessory]);
-
-        // create the accessory handler for the restored accessory
-        // this is imported from `platformAccessory.ts`
-        new ExamplePlatformAccessory(this, existingAccessory);
-
-        // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, e.g.:
-        // remove platform accessories when no longer present
-        // this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
-        // this.log.info('Removing existing accessory from cache:', existingAccessory.displayName);
-      } else {
-        // the accessory does not yet exist, so we need to create it
-        this.log.info('Adding new accessory:', device.exampleDisplayName);
-
-        // create a new accessory
-        const accessory = new this.api.platformAccessory(device.exampleDisplayName, uuid);
-
-        // store a copy of the device object in the `accessory.context`
-        // the `context` property can be used to store any data about the accessory you may need
-        accessory.context.device = device;
-
-        // create the accessory handler for the newly create accessory
-        // this is imported from `platformAccessory.ts`
-        new ExamplePlatformAccessory(this, accessory);
-
-        // link the accessory to your platform
-        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+  private async authenticateAndDiscoverDevices(): Promise<void> {
+    try {
+      // Try to load saved tokens
+      let authenticated = false;
+      if (fs.existsSync(this.tokensFile)) {
+        try {
+          const tokensData = fs.readFileSync(this.tokensFile, 'utf-8');
+          const tokens: EmporiaTokens = JSON.parse(tokensData);
+          if (tokens.expiresAt > Date.now()) {
+            this.api.setTokens(tokens, this.config.username);
+            authenticated = true;
+            this.log.info('Loaded saved authentication tokens');
+          }
+        } catch (error) {
+          this.log.warn('Failed to load saved tokens:', error);
+        }
       }
 
-      // push into discoveredCacheUUIDs
-      this.discoveredCacheUUIDs.push(uuid);
-    }
-
-    // you can also deal with accessories from the cache which are no longer present by removing them from Homebridge
-    // for example, if your plugin logs into a cloud account to retrieve a device list, and a user has previously removed a device
-    // from this cloud account, then this device will no longer be present in the device list but will still be in the Homebridge cache
-    for (const [uuid, accessory] of this.accessories) {
-      if (!this.discoveredCacheUUIDs.includes(uuid)) {
-        this.log.info('Removing existing accessory from cache:', accessory.displayName);
-        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+      // Authenticate if needed
+      if (!authenticated) {
+        this.log.info('Authenticating with Emporia API...');
+        const tokens = await this.api.login(
+          this.config.username,
+          this.config.password,
+        );
+        // Save tokens
+        fs.writeFileSync(this.tokensFile, JSON.stringify(tokens, null, 2));
       }
+
+      // Discover devices
+      await this.discoverDevices();
+    } catch (error) {
+      this.log.error('Failed to authenticate or discover devices:', error);
+      // Retry after 60 seconds
+      setTimeout(() => {
+        this.authenticateAndDiscoverDevices();
+      }, 60000);
     }
+  }
+
+  /**
+   * Discover and register devices
+   */
+  private async discoverDevices(): Promise<void> {
+    try {
+      const exposeOutlets = this.config.exposeOutlets !== false;
+      const exposeChargers = this.config.exposeChargers !== false;
+
+      // Get outlets if enabled
+      if (exposeOutlets) {
+        const outlets = await this.api.getOutlets();
+        this.log.info(`Discovered ${outlets.length} outlet(s)`);
+
+        for (const outlet of outlets) {
+          const uuid = this.homebridgeApi.hap.uuid.generate(
+            `outlet-${outlet.deviceGid}`,
+          );
+          this.discoveredUUIDs.add(uuid);
+
+          const existingAccessory = this.accessories.get(uuid);
+
+          if (existingAccessory) {
+            this.log.info(
+              'Restoring outlet from cache:',
+              existingAccessory.displayName,
+            );
+            existingAccessory.context.device = outlet;
+            this.homebridgeApi.updatePlatformAccessories([existingAccessory]);
+            new EmporiaOutletAccessory(this, existingAccessory);
+          } else {
+            const name = outlet.locationProperties?.deviceName ||
+              `Emporia Outlet ${outlet.deviceGid}`;
+            this.log.info('Adding new outlet:', name);
+
+            const accessory = new this.homebridgeApi.platformAccessory(
+              name,
+              uuid,
+            );
+            accessory.context.device = outlet;
+
+            new EmporiaOutletAccessory(this, accessory);
+            this.homebridgeApi.registerPlatformAccessories(
+              PLUGIN_NAME,
+              PLATFORM_NAME,
+              [accessory],
+            );
+            this.accessories.set(uuid, accessory);
+          }
+        }
+      }
+
+      // Get EV chargers if enabled
+      if (exposeChargers) {
+        const chargers = await this.api.getChargers();
+        this.log.info(`Discovered ${chargers.length} EV charger(s)`);
+
+        for (const charger of chargers) {
+          const uuid = this.homebridgeApi.hap.uuid.generate(
+            `charger-${charger.deviceGid}`,
+          );
+          this.discoveredUUIDs.add(uuid);
+
+          const existingAccessory = this.accessories.get(uuid);
+
+          if (existingAccessory) {
+            this.log.info(
+              'Restoring charger from cache:',
+              existingAccessory.displayName,
+            );
+            existingAccessory.context.device = charger;
+            this.homebridgeApi.updatePlatformAccessories([existingAccessory]);
+            new EmporiaChargerAccessory(this, existingAccessory);
+          } else {
+            const name = `Emporia Charger ${charger.deviceGid}`;
+            this.log.info('Adding new EV charger:', name);
+
+            const accessory = new this.homebridgeApi.platformAccessory(
+              name,
+              uuid,
+            );
+            accessory.context.device = charger;
+
+            new EmporiaChargerAccessory(this, accessory);
+            this.homebridgeApi.registerPlatformAccessories(
+              PLUGIN_NAME,
+              PLATFORM_NAME,
+              [accessory],
+            );
+            this.accessories.set(uuid, accessory);
+          }
+        }
+      }
+
+      // Remove accessories no longer present
+      for (const [uuid, accessory] of this.accessories) {
+        if (!this.discoveredUUIDs.has(uuid)) {
+          this.log.info(
+            'Removing accessory no longer present:',
+            accessory.displayName,
+          );
+          this.homebridgeApi.unregisterPlatformAccessories(
+            PLUGIN_NAME,
+            PLATFORM_NAME,
+            [accessory],
+          );
+          this.accessories.delete(uuid);
+        }
+      }
+
+      this.log.info('Device discovery complete');
+    } catch (error) {
+      this.log.error('Failed to discover devices:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update all devices with latest data
+   */
+  private async updateAllDevices(): Promise<void> {
+    if (this.config.debug) {
+      this.log.debug('Updating all devices...');
+    }
+    // Device accessories will handle their own updates via polling
+  }
+
+  /**
+   * Get the Emporia API client
+   */
+  getApi(): EmporiaApi {
+    return this.api;
   }
 }
