@@ -15,6 +15,12 @@ import { EmporiaApi, EmporiaTokens } from './emporiaApi.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
+export interface DeviceConfig {
+  deviceGid: number;
+  name?: string;
+  hide?: boolean;
+}
+
 export interface EmporiaPlatformConfig extends PlatformConfig {
   username: string;
   password: string;
@@ -23,6 +29,7 @@ export interface EmporiaPlatformConfig extends PlatformConfig {
   exposeChargers?: boolean;
   exposeEnergyMonitoring?: boolean;
   debug?: boolean;
+  devices?: DeviceConfig[];
 }
 
 /**
@@ -155,10 +162,23 @@ export class EmporiaEnergyPlatform implements DynamicPlatformPlugin {
         this.log.info(`Discovered ${outlets.length} outlet(s)`);
 
         for (const outlet of outlets) {
+          // Check if device should be hidden
+          if (this.isDeviceHidden(outlet.deviceGid)) {
+            this.log.info(
+              `Skipping hidden outlet: ${outlet.deviceGid}`,
+            );
+            continue;
+          }
+
           const uuid = this.homebridgeApi.hap.uuid.generate(
             `outlet-${outlet.deviceGid}`,
           );
           this.discoveredUUIDs.add(uuid);
+
+          // Get custom or default name
+          const defaultName = outlet.locationProperties?.deviceName ||
+            `Emporia Outlet ${outlet.deviceGid}`;
+          const name = this.getDeviceName(outlet.deviceGid, defaultName);
 
           const existingAccessory = this.accessories.get(uuid);
 
@@ -167,12 +187,16 @@ export class EmporiaEnergyPlatform implements DynamicPlatformPlugin {
               'Restoring outlet from cache:',
               existingAccessory.displayName,
             );
+            // Update name if it changed
+            if (existingAccessory.displayName !== name) {
+              this.log.info(`Updating outlet name to: ${name}`);
+              existingAccessory.displayName = name;
+              existingAccessory._associatedHAPAccessory.displayName = name;
+            }
             existingAccessory.context.device = outlet;
             this.homebridgeApi.updatePlatformAccessories([existingAccessory]);
             new EmporiaOutletAccessory(this, existingAccessory);
           } else {
-            const name = outlet.locationProperties?.deviceName ||
-              `Emporia Outlet ${outlet.deviceGid}`;
             this.log.info('Adding new outlet:', name);
 
             const accessory = new this.homebridgeApi.platformAccessory(
@@ -198,10 +222,22 @@ export class EmporiaEnergyPlatform implements DynamicPlatformPlugin {
         this.log.info(`Discovered ${chargers.length} EV charger(s)`);
 
         for (const charger of chargers) {
+          // Check if device should be hidden
+          if (this.isDeviceHidden(charger.deviceGid)) {
+            this.log.info(
+              `Skipping hidden charger: ${charger.deviceGid}`,
+            );
+            continue;
+          }
+
           const uuid = this.homebridgeApi.hap.uuid.generate(
             `charger-${charger.deviceGid}`,
           );
           this.discoveredUUIDs.add(uuid);
+
+          // Get custom or default name
+          const defaultName = `Emporia Charger ${charger.deviceGid}`;
+          const name = this.getDeviceName(charger.deviceGid, defaultName);
 
           const existingAccessory = this.accessories.get(uuid);
 
@@ -210,11 +246,16 @@ export class EmporiaEnergyPlatform implements DynamicPlatformPlugin {
               'Restoring charger from cache:',
               existingAccessory.displayName,
             );
+            // Update name if it changed
+            if (existingAccessory.displayName !== name) {
+              this.log.info(`Updating charger name to: ${name}`);
+              existingAccessory.displayName = name;
+              existingAccessory._associatedHAPAccessory.displayName = name;
+            }
             existingAccessory.context.device = charger;
             this.homebridgeApi.updatePlatformAccessories([existingAccessory]);
             new EmporiaChargerAccessory(this, existingAccessory);
           } else {
-            const name = `Emporia Charger ${charger.deviceGid}`;
             this.log.info('Adding new EV charger:', name);
 
             const accessory = new this.homebridgeApi.platformAccessory(
@@ -272,5 +313,31 @@ export class EmporiaEnergyPlatform implements DynamicPlatformPlugin {
    */
   getApi(): EmporiaApi {
     return this.api;
+  }
+
+  /**
+   * Get device configuration by device GID
+   */
+  private getDeviceConfig(deviceGid: number): DeviceConfig | undefined {
+    return this.config.devices?.find((d) => d.deviceGid === deviceGid);
+  }
+
+  /**
+   * Get custom name for device or fall back to default
+   */
+  private getDeviceName(
+    deviceGid: number,
+    defaultName: string,
+  ): string {
+    const deviceConfig = this.getDeviceConfig(deviceGid);
+    return deviceConfig?.name || defaultName;
+  }
+
+  /**
+   * Check if device should be hidden
+   */
+  private isDeviceHidden(deviceGid: number): boolean {
+    const deviceConfig = this.getDeviceConfig(deviceGid);
+    return deviceConfig?.hide === true;
   }
 }
