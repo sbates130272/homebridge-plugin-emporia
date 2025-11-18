@@ -342,27 +342,27 @@ export class EmporiaApi {
 
   /**
    * Get device usage data
-   * Uses PyEmVue's ChartUsage endpoint
+   * Uses PyEmVue's getChartUsage API method with GET request and query parameters
    */
   async getDeviceUsage(
     deviceGid: number,
-    instant: Date = new Date(),
-    scale: string = '1MIN',
+    channel: string = '1,2,3',
+    start: Date = new Date(Date.now() - 60000),
+    end: Date = new Date(),
+    scale: string = '1S',
     unit: string = 'KilowattHours',
   ): Promise<EmporiaUsageData> {
     try {
-      const response = await this.client.post(
-        '/AppAPI/ChartUsage',
-        {
-          deviceGids: [deviceGid],
-          instant: instant.toISOString(),
-          scale,
-          energyUnit: unit,
-        },
-        {
-          headers: { authtoken: this.tokens?.idToken },
-        },
-      );
+      // Format dates as Unix timestamps in milliseconds
+      const startMs = Math.floor(start.getTime());
+      const endMs = Math.floor(end.getTime());
+      
+      // Use GET with query parameters like PyEmVue does
+      const url = `AppAPI?apiMethod=getChartUsage&deviceGid=${deviceGid}&channel=${channel}&start=${startMs}&end=${endMs}&scale=${scale}&energyUnit=${unit}`;
+      
+      const response = await this.client.get(url, {
+        headers: { authtoken: this.tokens?.idToken },
+      });
       return response.data;
     } catch (error) {
       this.log.error(
