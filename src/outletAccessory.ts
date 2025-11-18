@@ -129,14 +129,20 @@ export class EmporiaOutletAccessory {
               .getApi()
               .getDeviceUsage(device.deviceGid);
 
-            if (usage.channelUsages && usage.channelUsages.length > 0) {
-              // Usage is in kWh for the time period
-              // Convert to instantaneous power (watts)
-              const usageKwh = usage.channelUsages[0].usage || 0;
-              // Assuming 1 minute intervals, multiply by 60 to get hourly rate
-              this.currentPower = usageKwh * 60 * 1000; // Convert to watts
-              this.totalConsumption += usageKwh;
+            if (usage.deviceListUsages?.devices?.[0]?.channelUsages) {
+              const deviceUsage = usage.deviceListUsages.devices[0];
+              const channelUsages = deviceUsage.channelUsages;
+              if (channelUsages.length > 0) {
+                // Usage is in kWh for the time period
+                // Convert to instantaneous power (watts)
+                const usageKwh = channelUsages[0].usage || 0;
+                // Assuming 1 minute intervals, multiply by 60 to get hourly rate
+                this.currentPower = usageKwh * 60 * 1000; // Convert to watts
+                this.totalConsumption += usageKwh;
+              }
+            }
 
+            if (this.currentPower > 0 || this.totalConsumption > 0) {
               if (this.platform.config.debug) {
                 this.platform.log.debug(
                   `${this.accessory.displayName} - Power: 

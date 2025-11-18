@@ -68,13 +68,17 @@ export interface EmporiaCharger {
 }
 
 export interface EmporiaUsageData {
-  deviceGid: number;
-  channelUsages: Array<{
-    deviceGid: number;
-    channelNum: string;
-    usage: number;
-    timestamp: string;
-  }>;
+  deviceListUsages: {
+    instant: string;
+    devices: Array<{
+      deviceGid: number;
+      channelUsages: Array<{
+        deviceGid: number;
+        channelNum: string;
+        usage: number;
+      }>;
+    }>;
+  };
 }
 
 /**
@@ -342,25 +346,24 @@ export class EmporiaApi {
 
   /**
    * Get device usage data
-   * Uses PyEmVue's getChartUsage API method with GET request and query parameters
+   * Uses PyEmVue's getDeviceListUsages API (works for outlets!)
+   * Based on emvue-exporter implementation
    */
   async getDeviceUsage(
     deviceGid: number,
-    channel: string = '1,2,3',
-    start: Date = new Date(Date.now() - 60000),
-    end: Date = new Date(),
-    scale: string = '1S',
+    instant: Date = new Date(),
+    scale: string = '1MIN',
     unit: string = 'KilowattHours',
   ): Promise<EmporiaUsageData> {
     try {
-      // Format dates as ISO 8601 strings with Z suffix (like PyEmVue does)
-      const startStr = start.toISOString();
-      const endStr = end.toISOString();
+      // Format date as ISO 8601 string (like PyEmVue does)
+      const instantStr = instant.toISOString();
       
-      // Use GET with query parameters like PyEmVue does
-      const url = `AppAPI?apiMethod=getChartUsage&deviceGid=${deviceGid}` +
-        `&channel=${channel}&start=${encodeURIComponent(startStr)}` +
-        `&end=${encodeURIComponent(endStr)}&scale=${scale}&energyUnit=${unit}`;
+      // Use getDeviceListUsages (plural) - works for outlets
+      // No channel parameter needed!
+      const url = 'AppAPI?apiMethod=getDeviceListUsages' +
+        `&deviceGids=${deviceGid}&instant=${encodeURIComponent(instantStr)}` +
+        `&scale=${scale}&energyUnit=${unit}`;
       
       const response = await this.client.get(url, {
         headers: { authtoken: this.tokens?.idToken },

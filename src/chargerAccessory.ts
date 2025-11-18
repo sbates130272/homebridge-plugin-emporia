@@ -123,21 +123,25 @@ export class EmporiaChargerAccessory {
               .getApi()
               .getDeviceUsage(device.deviceGid);
 
-            if (usage.channelUsages && usage.channelUsages.length > 0) {
-              // Usage is in kWh for the time period
-              const usageKwh = usage.channelUsages[0].usage || 0;
-              // Convert to instantaneous power (watts)
-              // Assuming 1 minute intervals
-              this.currentPower = usageKwh * 60 * 1000;
-              this.totalConsumption += usageKwh;
+            if (usage.deviceListUsages?.devices?.[0]?.channelUsages) {
+              const deviceUsage = usage.deviceListUsages.devices[0];
+              const channelUsages = deviceUsage.channelUsages;
+              if (channelUsages.length > 0) {
+                // Usage is in kWh for the time period
+                const usageKwh = channelUsages[0].usage || 0;
+                // Convert to instantaneous power (watts)
+                // Assuming 1 minute intervals
+                this.currentPower = usageKwh * 60 * 1000;
+                this.totalConsumption += usageKwh;
 
-              if (this.platform.config.debug) {
-                this.platform.log.debug(
-                  `${this.accessory.displayName} - Power: 
-                    ${this.currentPower.toFixed(1)}W, 
-                    Rate: ${this.currentChargingRate}A, 
-                    Total: ${this.totalConsumption.toFixed(3)}kWh`,
-                );
+                if (this.platform.config.debug) {
+                  this.platform.log.debug(
+                    `${this.accessory.displayName} - Power: 
+                      ${this.currentPower.toFixed(1)}W, 
+                      Rate: ${this.currentChargingRate}A, 
+                      Total: ${this.totalConsumption.toFixed(3)}kWh`,
+                  );
+                }
               }
             }
           } catch (error) {
